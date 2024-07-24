@@ -40,7 +40,15 @@ class Network(object):
         """TODO: Implement the derivative of the relu function."""
         raise NotImplementedError
 
-    def cross_entropy_loss(self, logits, y_true):
+    @staticmethod
+    def cross_entropy_loss(logits, y_true):
+        """
+        Description: Implements cross entropy loss.
+        Input: "logits": numpy array of shape (10, batch_size) where each column is the network output on the given
+                         example (before softmax)
+                "y_true": numpy array of shape (batch_size,) containing the true labels of the batch
+        Return:
+        """
         m = y_true.shape[0]
         # Compute log-sum-exp across each column for normalization
         log_probs = logits - logsumexp(logits, axis=0)
@@ -50,9 +58,12 @@ class Network(object):
         return loss
 
     def cross_entropy_derivative(self, logits, y_true):
-        """ Input: "logits": numpy array of shape (10, batch_size) where each column is the network output on the given example (before softmax)
-                    "y_true": numpy array of shape (batch_size,) containing the true labels of the batch
-            Returns: a numpy array of shape (10,batch_size) where each column is the gradient of the loss with respect to y_pred (the output of the network before the softmax layer) for the given example.
+        """
+        Input: "logits": numpy array of shape (10, batch_size) where each column is the network output on the given
+                         example (before softmax)
+                "y_true": numpy array of shape (batch_size,) containing the true labels of the batch
+        Returns: a numpy array of shape (10,batch_size) where each column is the gradient of the loss with respect
+                 to y_pred (the output of the network before the softmax layer) for the given example.
         """
         # TODO: Implement
         raise NotImplementedError
@@ -60,38 +71,37 @@ class Network(object):
     def forward_propagation(self, X):
         """
         Implement the forward step of the backpropagation algorithm.
-            Input: "X" - numpy array of shape (784, batch_size) - the input to the network
-            Returns: "ZL" - numpy array of shape (10, batch_size),
-                     the output of the network on the input X (before the softmax layer)
-                    "forward_outputs" - A list of length self.num_layers,
-                     containing the forward computation (parameters & output of each layer).
+
+        Input: "X" - numpy array of shape (784, batch_size) - the input to the network
+
+        Returns: "ZL" - numpy array of shape (10, batch_size), the output of the network on the input X
+                        (before the softmax layer)
+                "forward_outputs" - A list of length self.num_layers, containing the forward computation
+                (parameters & output of each layer).
         """
 
-        ZL = None
+        zl = X
         forward_outputs = []
-
-        activation = X
 
         # linear forward propagation with ReLU for layers 1 to (num_layers - 1)
         for layer in range(1, self.num_layers):
-            prev_activation = activation
-            activation, cache = self.linear_activation_forward(prev_activation=prev_activation,
-                                                               w=self.parameters['W' + str(layer)],
-                                                               b=self.parameters['b' + str(layer)],
-                                                               activation_function="relu",
-                                                               layer=layer)
+            zl_prev = zl
+            activation, cache = self.linear_forward(activation=zl_prev,
+                                                    w=self.parameters['W' + str(layer)],
+                                                    b=self.parameters['b' + str(layer)],
+                                                    layer=layer)
+            # applies ReLU
+            cache[f'z{layer}'] = activation
+            zl = self.relu(activation)
 
             forward_outputs.append(cache)
 
-        # linear forward propagation with Softmax for final layer
         last_layer = self.num_layers
-        last_activation, cache = self.linear_activation_forward(prev_activation=activation,
-                                                                w=self.parameters[f'W{last_layer}'],
-                                                                b=self.parameters[f'b{last_layer}'],
-                                                                activation_function="softmax",
-                                                                layer=last_layer)
-
-        ZL = last_activation
+        # linear forward propagation *without* Softmax for last layer
+        ZL, cache = self.linear_forward(activation=zl,
+                                        w=self.parameters['W' + str(last_layer)],
+                                        b=self.parameters['b' + str(last_layer)],
+                                        layer=last_layer)
         forward_outputs.append(cache)
 
         return ZL, forward_outputs
@@ -104,66 +114,33 @@ class Network(object):
         Input:
         activation – the activations of the previous layer.
         w – the weight matrix of the current layer (of shape [size of current layer, size of previous layer]).
-        B – the bias vector of the current layer (of shape [size of current layer, 1]).
+        b – the bias vector of the current layer (of shape [size of current layer, 1]).
 
         Output:
-        Z – the linear component of the activations function (i.e., the value before applying the non-linear function).
+        zl – the linear component of the activations function (i.e., the value before applying the non-linear function).
         cache – a dictionary containing activation, w, b (stored for making the backpropagation easier to compute).
         """
         cache = {}
-        z = np.dot(w, activation) + b
+        zl = np.dot(w, activation) + b
         cache[f'x{layer}'] = activation
         cache[f'W{layer}'] = w
         cache[f'b{layer}'] = b
 
-        return z, cache
-
-    def linear_activation_forward(self, prev_activation: np.ndarray,
-                                  w: np.ndarray,
-                                  b: np.ndarray,
-                                  activation_function: str,
-                                  layer: int) -> tuple[np.ndarray, dict]:
-        """
-        Description: Implement the forward propagation for the activation function decision.
-
-        Input:
-        prev_activation – activation of the previous layer.
-        w – the weights matrix of the current layer.
-        B – the bias vector of the current layer.
-        activation_function – the activation function to be used (either “sigmoid” or “relu”).
-
-        Output:
-        activation – the activation of the current layer
-        cache – a joint dictionary containing both cache and activation_cache
-        """
-        # calculate the linear part.
-        z, cache = self.linear_forward(activation=prev_activation, w=w, b=b, layer=layer)
-
-        if activation_function.__eq__("softmax"):
-            activation = softmax(z)
-            activation_cache = z
-            cache[f'z{layer}'] = activation_cache
-
-            return activation, cache
-
-        elif activation_function.__eq__("relu"):
-            activation = self.relu(z)
-            activation_cache = z
-            cache[f'z{layer}'] = activation_cache
-
-            return activation, cache
-
-        else:
-            raise Exception('Non-supported activation function')
+        return zl, cache
 
     def backpropagation(self, ZL, Y, forward_outputs):
-        """Implement the backward step of the backpropagation algorithm.
-            Input: "ZL" -  numpy array of shape (10, batch_size), the output of the network on the input X (before the softmax layer)
-                    "Y" - numpy array of shape (batch_size,) containing the labels of each example in the current batch.
-                    "forward_outputs" - list of length self.num_layers given by the output of the forward function
-            Returns: "grads" - dictionary containing the gradients of the loss with respect to the network parameters across the batch.
-                                grads["dW" + str(l)] is a numpy array of shape (sizes[l], sizes[l-1]),
-                                grads["db" + str(l)] is a numpy array of shape (sizes[l],1).
+        """
+        Implement the backward step of the backpropagation algorithm.
+
+        Input: "ZL" -  numpy array of shape (10, batch_size), the output of the network on the input X
+                       (before the softmax layer)
+                "Y" - numpy array of shape (batch_size,) containing the labels of each example in the current batch.
+                "forward_outputs" - list of length self.num_layers given by the output of the forward function
+
+        Returns: "grads" - dictionary containing the gradients of the loss with respect to the network parameters
+                           across the batch.
+                           grads["dW" + str(l)] is a numpy array of shape (sizes[l], sizes[l-1]),
+                           grads["db" + str(l)] is a numpy array of shape (sizes[l],1).
         
         """
         grads = {}
@@ -174,7 +151,7 @@ class Network(object):
 
     def sgd_step(self, grads, learning_rate):
         """
-        Updates the network parameters via SGD with the given gradients and learning rate.
+            Updates the network parameters via SGD with the given gradients and learning rate.
         """
         parameters = self.parameters
         L = self.num_layers
@@ -199,6 +176,8 @@ class Network(object):
                 ZL, caches = self.forward_propagation(X_batch)
                 cost = self.cross_entropy_loss(ZL, Y_batch)
                 costs.append(cost)
+
+                # @todo:
                 grads = self.backpropagation(ZL, Y_batch, caches)
 
                 self.parameters = self.sgd_step(grads, learning_rate)
