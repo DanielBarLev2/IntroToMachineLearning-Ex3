@@ -9,10 +9,6 @@ n_train = 50000
 n_test = 10000
 x_train, y_train, x_test, y_test = load_as_matrix_with_labels(n_train, n_test)
 
-
-
-
-
 # Training configuration
 epochs = 30
 batch_size = 100
