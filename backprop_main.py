@@ -5,12 +5,12 @@ from backprop_data import *
 
 # Loading Data
 np.random.seed(0)  # For reproducibility
-n_train = 50000
+n_train = 1000
 n_test = 10000
 x_train, y_train, x_test, y_test = load_as_matrix_with_labels(n_train, n_test)
 
 # Training configuration
-epochs = 30
+epochs = 5000
 batch_size = 100
 learning_rate = 0.1
 
