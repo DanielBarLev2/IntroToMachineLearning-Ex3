@@ -184,15 +184,14 @@ class Network(object):
                 X_batch = x_train[:, i:i + batch_size]
                 Y_batch = y_train[i:i + batch_size]
 
-                # forward pass:
+                # Forward pass:
                 ZL, forward_outputs = self.forward_propagation(x=X_batch)
+                # Loss computation
                 cost = self.cross_entropy_loss(logits=ZL, y_true=Y_batch)
                 cost_list.append(cost)
-
-                # backward pass:
+                # Backward pass:
                 grads = self.backpropagation(zl=ZL, Y=Y_batch, forward_outputs=forward_outputs)
-
-                # applies learning with SGD
+                # Applies learning with SGD
                 self.parameters = self.sgd_step(grads, learning_rate)
 
                 preds = np.argmax(ZL, axis=0)
@@ -201,21 +200,28 @@ class Network(object):
 
             average_train_cost = np.mean(cost_list)
             average_train_acc = np.mean(accuracy_list)
-            print(f"Epoch: {epoch + 1}, Training loss: {average_train_cost:.20f}, Training accuracy:"
-                  f" {average_train_acc:.20f}")
 
             epoch_train_cost.append(average_train_cost)
             epoch_train_acc.append(average_train_acc)
 
-            # # Evaluate test error
-            # ZL, caches = self.forward_propagation(x_test)
-            # test_cost = self.cross_entropy_loss(ZL, y_test)
-            # preds = np.argmax(ZL, axis=0)
-            # test_acc = self.calculate_accuracy(preds, y_test, len(y_test))
-            # # print(f"Epoch: {epoch + 1}, Test loss: {test_cost:.20f}, Test accuracy: {test_acc:.20f}")
-            #
-            # epoch_test_cost.append(test_cost)
-            # epoch_test_acc.append(test_acc)
+            # Evaluate test error
+            ZL, caches = self.forward_propagation(x_test)
+            test_cost = self.cross_entropy_loss(ZL, y_test)
+            preds = np.argmax(ZL, axis=0)
+            test_acc = self.calculate_accuracy(preds, y_test, len(y_test))
+
+            epoch_test_cost.append(test_cost)
+            epoch_test_acc.append(test_acc)
+
+            if epoch % 100 == 0:
+                print(f"Epoch: {epoch + 1}, Training loss: {average_train_cost:.20f}, Training accuracy:"
+                      f" {average_train_acc:.20f}")
+
+                print(f"Epoch: {epoch + 1}, Test loss: {test_cost:.20f}, Test accuracy: {test_acc:.20f}")
+
+            if 0.98 < test_acc:
+                print(f"break after {epoch} epochs")
+                break
 
         return self.parameters, epoch_train_cost, epoch_test_cost, epoch_train_acc, epoch_test_acc
 
